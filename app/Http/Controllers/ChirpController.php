@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Chirp;
+use App\Models\Hashtag;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+
 
 class ChirpController extends Controller
 {
@@ -33,15 +36,32 @@ class ChirpController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'message' => 'required|string|max:255',
-        ]);
- 
-        $request->user()->chirps()->create($validated);
- 
-        return redirect(route('chirps.index'));
+{
+    $validated = $request->validate([
+        'message' => 'required|string',
+        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+    ]);
+
+    if ($request->hasFile('image')) {
+        $validated['image'] = $request->file('image')->store('chirps', 'public');
     }
+
+    // Simpan Chirp
+    $chirp = $request->user()->chirps()->create($validated);
+
+    // Tangkap hashtags dari pesan
+    preg_match_all('/#(\w+)/', $validated['message'], $hashtags);
+
+    // Simpan hashtags ke tabel dan hubungkan dengan chirp
+    foreach ($hashtags[1] as $hashtag) {
+        $hashtagModel = Hashtag::firstOrCreate(['name' => $hashtag]);
+        $chirp->hashtags()->attach($hashtagModel); // Hubungkan chirp dengan hashtag
+    }
+
+    return redirect(route('chirps.index'));
+}
+
+    
 
     /**
      * Display the specified resource.
@@ -67,7 +87,7 @@ class ChirpController extends Controller
         Gate::authorize('update', $chirp);
  
         $validated = $request->validate([
-            'message' => 'required|string|max:255',
+            'message' => 'required|string',
         ]);
  
         $chirp->update($validated);
@@ -86,4 +106,38 @@ class ChirpController extends Controller
  
         return redirect(route('chirps.index'));
     }
+
+    public function showHashtag($hashtag)
+{
+    // Ambil chirps yang mengandung hashtag
+    $chirps = Chirp::with('user') // Pastikan eager load relasi user
+        ->where('message', 'LIKE', "%#{$hashtag}%")
+        ->latest()
+        ->get();
+
+    // Kirim data ke frontend
+    return inertia('HashtagPage', [
+        'chirps' => $chirps,
+        'hashtag' => $hashtag,
+    ]);
+}
+
+
+// Di dalam ChirpController.php
+public function showHashtagChirps($hashtag)
+{
+    // Mengambil chirps yang mengandung hashtag yang dipilih
+    $chirps = Chirp::whereHas('hashtags', function ($query) use ($hashtag) {
+        $query->where('name', $hashtag);
+    })->with('user:id,name')->latest()->get();
+
+    return Inertia::render('Chirps/Hashtag', [
+        'chirps' => $chirps,
+        'hashtag' => $hashtag,
+    ]);
+}
+
+
+
+
 }

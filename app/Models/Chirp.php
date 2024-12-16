@@ -13,6 +13,8 @@ class Chirp extends Model
 
     protected $fillable = [
         'message',
+        'content',
+        'image',
     ];
     
     protected $dispatchesEvents = [
@@ -22,5 +24,10 @@ class Chirp extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function hashtags()
+    {
+        return $this->belongsToMany(Hashtag::class, 'chirp_hashtag', 'chirp_id', 'hashtag_id');
     }
 }

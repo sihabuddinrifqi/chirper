@@ -19,6 +19,9 @@
         "vue": "^3.4.0"
     },
     "dependencies": {
-        "dayjs": "^1.11.13"
+        "@tiptap/starter-kit": "^2.10.3",
+        "@tiptap/vue-3": "^2.10.3",
+        "dayjs": "^1.11.13",
+        "quill": "^2.0.3"
     }
 }
